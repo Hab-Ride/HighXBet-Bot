@@ -1,146 +1,132 @@
 import requests
-import json
 from datetime import datetime
 
-print("🎯 HIGHXBET MATCH ANALYZER")
-print("=" * 50)
+print("🤖 HIGHXBET SIMPLE ANALYZER")
+print("=" * 40)
 
-class SimpleAnalyzer:
-    def __init__(self):
-        self.config = self.load_config()
+def send_telegram_message(message):
+    """Send message via Telegram"""
+    try:
+        bot_token = "8534136877:AAFyD4a2jNR3MTZlpI3WEoS1oFTMWD7b2a3"
+        chat_id = "645815915"
         
-    def load_config(self):
-        """Simple config loader"""
-        return {
-            "api": {
-                "odds_api_key": "d2f5b0c0c61c47bb246e0b5484f7b2a3",
-                "telegram_bot_token": "8534136877:AAFyD4a2jNR3MTZlpI3WEoS1oFTMWD7b2a3",
-                "telegram_chat_id": "645815915"
-            }
+        url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+        payload = {
+            'chat_id': chat_id,
+            'text': message,
+            'parse_mode': 'HTML'
         }
+        
+        response = requests.post(url, json=payload, timeout=10)
+        return response.status_code == 200
+    except Exception as e:
+        print(f"Telegram error: {e}")
+        return False
+
+def get_sports_events():
+    """Get sports events from API"""
+    api_key = "d2f5b0c0c61c47bb246e0b5484f7b2a3"
     
-    def send_telegram_message(self, message):
-        """Send message via Telegram"""
+    print("🌐 Fetching sports events...")
+    
+    sports_to_check = [
+        "soccer_epl",           # Premier League
+        "basketball_nba",       # NBA
+        "soccer_spain_la_liga", # La Liga
+        "soccer_uefa_champions_league" # Champions League
+    ]
+    
+    all_events = []
+    
+    for sport in sports_to_check:
         try:
-            bot_token = self.config['api']['telegram_bot_token']
-            chat_id = self.config['api']['telegram_chat_id']
-            
-            url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-            payload = {
-                'chat_id': chat_id,
-                'text': message,
-                'parse_mode': 'HTML'
+            url = f"https://api.the-odds-api.com/v4/sports/{sport}/odds"
+            params = {
+                'apiKey': api_key,
+                'regions': 'eu',
+                'oddsFormat': 'decimal'
             }
             
-            response = requests.post(url, json=payload, timeout=10)
-            return response.status_code == 200
-        except:
-            return False
+            response = requests.get(url, params=params, timeout=10)
+            
+            if response.status_code == 200:
+                events = response.json()
+                all_events.extend(events)
+                
+                sport_name = sport.replace('_', ' ').title()
+                print(f"✅ {sport_name}: {len(events)} events")
+            else:
+                print(f"❌ {sport}: API returned {response.status_code}")
+                
+        except Exception as e:
+            print(f"⚠️ {sport}: Connection failed")
     
-    def get_current_matches(self):
-        """Get today's matches"""
-        api_key = self.config['api']['odds_api_key']
-        
-        print("🌐 Fetching current matches...")
-        
-        sports = ["soccer_epl", "basketball_nba"]
-        all_matches = []
-        
-        for sport in sports:
-            try:
-                url = f"https://api.the-odds-api.com/v4/sports/{sport}/odds"
-                params = {
-                    'apiKey': api_key,
-                    'regions': 'eu',
-                    'oddsFormat': 'decimal'
-                }
-                
-                response = requests.get(url, params=params, timeout=15)
-                if response.status_code == 200:
-                    matches = response.json()
-                    all_matches.extend(matches)
-                    sport_name = "Football" if "soccer" in sport else "Basketball"
-                    print(f"✅ {sport_name}: {len(matches)} matches")
-                else:
-                    print(f"⚠️ {sport}: API error")
-                    
-            except Exception as e:
-                print(f"⚠️ {sport}: Error")
-        
-        return all_matches
-    
-    def analyze_matches(self, matches):
-        """Simple match analysis"""
-        predictions = []
-        
-        for match in matches[:6]:  # Analyze first 6 matches
-            try:
-                home_team = match.get('home_team', 'Home')
-                away_team = match.get('away_team', 'Away')
-                sport = "Basketball" if "basketball" in match.get('sport_key', '') else "Football"
-                
-                # Simple analysis (replace with real models later)
-                if sport == "Football":
-                    prediction = f"{home_team} vs {away_team}\n"
-                    prediction += f"   📊 Home: 45% | Draw: 30% | Away: 25%\n"
-                    prediction += f"   ⚽ Over 2.5: 65% | BTTS: 58%\n"
-                    prediction += f"   🎯 Predicted: 2-1\n"
-                else:
-                    prediction = f"{home_team} vs {away_team}\n"
-                    prediction += f"   📊 Home: 55% | Away: 45%\n"
-                    prediction += f"   🏀 Over Total: 62%\n"
-                    prediction += f"   🎯 Predicted: 108-102\n"
-                
-                predictions.append(prediction)
-                print(f"✅ Analyzed: {home_team} vs {away_team}")
-                
-            except Exception as e:
-                continue
-        
-        return predictions
-    
-    def run_analysis(self):
-        """Run complete analysis"""
-        print("🚀 Starting analysis...")
-        
-        # Get current matches
-        matches = self.get_current_matches()
-        
-        if not matches:
-            message = "❌ No current matches found for analysis."
-            print(message)
-            self.send_telegram_message(message)
-            return
-        
-        # Analyze matches
-        predictions = self.analyze_matches(matches)
-        
-        # Format Telegram message
-        message = "🎯 <b>HIGHXBET DAILY ANALYSIS</b>\n\n"
-        message += f"📅 {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n"
-        message += f"📊 Found {len(matches)} live matches\n\n"
-        
-        if predictions:
-            message += "<b>TOP PREDICTIONS:</b>\n"
-            for i, pred in enumerate(predictions[:4], 1):
-                message += f"{i}. {pred}\n"
-        else:
-            message += "❌ No matches analyzed\n"
-        
-        message += "\n⚡ <i>Live match analysis completed</i>"
-        
-        # Send to Telegram
-        print("📱 Sending to Telegram...")
-        if self.send_telegram_message(message):
-            print("✅ Telegram alert sent!")
-        else:
-            print("❌ Failed to send Telegram")
-        
-        print(f"\n🎯 ANALYSIS COMPLETE!")
-        print(f"📊 Matches analyzed: {len(predictions)}")
-        print("📱 Check your Telegram!")
+    return all_events
 
-# Run the analysis
+def create_analysis_message(events):
+    """Create analysis message for Telegram"""
+    message = "🎯 <b>HIGHXBET SPORTS ANALYSIS</b> 🎯\n\n"
+    message += f"📅 {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n"
+    
+    if not events:
+        message += "❌ No live events found currently.\n"
+        message += "💡 Try again later when matches are scheduled.\n\n"
+        return message
+    
+    # Count by sport type
+    football_matches = [e for e in events if 'soccer' in e.get('sport_key', '')]
+    basketball_matches = [e for e in events if 'basketball' in e.get('sport_key', '')]
+    
+    message += f"📊 <b>EVENTS FOUND:</b>\n"
+    message += f"⚽ Football: {len(football_matches)} matches\n"
+    message += f"🏀 Basketball: {len(basketball_matches)} games\n\n"
+    
+    # Show top events
+    message += "<b>TOP EVENTS TODAY:</b>\n"
+    
+    for i, event in enumerate(events[:8], 1):  # Show first 8 events
+        home_team = event.get('home_team', 'Home Team')
+        away_team = event.get('away_team', 'Away Team')
+        sport = "⚽ Football" if 'soccer' in event.get('sport_key', '') else "🏀 Basketball"
+        
+        message += f"{i}. <b>{home_team} vs {away_team}</b>\n"
+        message += f"   {sport}\n"
+        message += f"   🕒 Commences: {event.get('commence_time', 'Today')[:10]}\n\n"
+    
+    message += "🔍 <i>Live sports data from The Odds API</i>\n"
+    message += "📈 <i>Analysis ready for today's matches</i>"
+    
+    return message
+
+def main():
+    """Main function"""
+    print("🚀 Starting HighXBet Analysis...")
+    
+    # Get sports events
+    events = get_sports_events()
+    
+    # Create analysis message
+    message = create_analysis_message(events)
+    
+    # Print to console
+    print("\n" + "=" * 40)
+    print("ANALYSIS RESULTS:")
+    print("=" * 40)
+    print(message.replace('<b>', '').replace('</b>', '').replace('<i>', '').replace('</i>', ''))
+    print("=" * 40)
+    
+    # Send to Telegram
+    print("\n📱 Sending to Telegram...")
+    if send_telegram_message(message):
+        print("✅ Telegram message sent successfully!")
+        print("📱 Check your phone for the analysis!")
+    else:
+        print("❌ Failed to send Telegram message")
+    
+    print(f"\n🎯 ANALYSIS COMPLETED!")
+    print(f"📊 Total events found: {len(events)}")
+    print("🤖 Bot finished successfully!")
+
+# Run the bot
 if __name__ == "__main__":
-    analyzer = SimpleAnalyzer()
-    analyzer.run_analysis()
+    main()
