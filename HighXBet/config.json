@@ -1,21 +1,16 @@
 {
     "api": {
         "odds_api_key": "d2f5b0c0c61c47bb246e0b5484f7b2a3",
-        "telegram_bot_token": "8534136877:AAFyD4a2jNR3MTZlpI3WEoS1oFTMWD7bzaQ",
+        "telegram_bot_token": "8534136877:AAFyD4a2jNR3MTZlpI3WEoS1oFTMWD7b2a3",
         "telegram_chat_id": "645815915"
     },
-    "betting": {
-        "min_odds": 2.5,
-        "max_odds": 5.0,
-        "value_threshold": 0.05,
-        "max_bets_per_day": 5,
-        "min_confidence": 0.65
+    "sports": {
+        "football": true,
+        "basketball": true
     },
-    "leagues": [
-        {"name": "Premier League", "code": "soccer_epl", "active": true},
-        {"name": "La Liga", "code": "soccer_spain_la_liga", "active": true},
-        {"name": "Serie A", "code": "soccer_italy_serie_a", "active": true},
-        {"name": "Champions League", "code": "soccer_uefa_champions_league", "active": true},
-        {"name": "Bundesliga", "code": "soccer_germany_bundesliga", "active": true}
-    ]
+    "analysis": {
+        "show_predictions": true,
+        "show_value_bets": true,
+        "min_confidence": 0.60
+    }
 }
