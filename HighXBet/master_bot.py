@@ -10,31 +10,44 @@ print("=" * 60)
 class EnhancedAnalyzer:
     def __init__(self):
         self.config = self.load_config()
-        self.football_data = None
-        self.basketball_data = None
         
     def load_config(self):
-        """Load configuration"""
+        """Load configuration with defaults"""
+        default_config = {
+            "api": {
+                "odds_api_key": "d2f5b0c0c61c47bb246e0b5484f7b2a3",
+                "telegram_bot_token": "8534136877:AAFyD4a2jNR3MTZlpI3WEoS1oFTMWD7b2a3",
+                "telegram_chat_id": "645815915"
+            },
+            "sports": {
+                "football": True,
+                "basketball": True
+            },
+            "analysis": {
+                "show_predictions": True,
+                "show_value_bets": True,
+                "min_confidence": 0.60
+            }
+        }
+        
         try:
             with open('config.json', 'r') as f:
-                return json.load(f)
+                user_config = json.load(f)
+                # Merge with defaults
+                return self.deep_merge(default_config, user_config)
         except:
-            return {
-                "api": {
-                    "odds_api_key": "d2f5b0c0c61c47bb246e0b5484f7b2a3",
-                    "telegram_bot_token": "8534136877:AAFyD4a2jNR3MTZlpI3WEoS1oFTMWD7b2a3",
-                    "telegram_chat_id": "645815915"
-                },
-                "sports": {
-                    "football": True,
-                    "basketball": True
-                },
-                "analysis": {
-                    "show_predictions": True,
-                    "show_value_bets": True,
-                    "min_confidence": 0.60
-                }
-            }
+            print("⚠️ Using default configuration")
+            return default_config
+    
+    def deep_merge(self, default, user):
+        """Deep merge two dictionaries"""
+        result = default.copy()
+        for key, value in user.items():
+            if isinstance(value, dict) and key in result and isinstance(result[key], dict):
+                result[key] = self.deep_merge(result[key], value)
+            else:
+                result[key] = value
+        return result
     
     def send_telegram_message(self, message):
         """Send message via Telegram"""
@@ -65,8 +78,7 @@ class EnhancedAnalyzer:
             ]
         else:  # basketball
             sports = [
-                "basketball_nba", "basketball_euroleague", 
-                "basketball_spain_acb", "basketball_italy_serie_a"
+                "basketball_nba", "basketball_euroleague"
             ]
         
         print(f"🌐 Fetching LIVE {sport_type} matches...")
@@ -96,7 +108,6 @@ class EnhancedAnalyzer:
     
     def analyze_football_match(self, home_team, away_team, odds_data):
         """Comprehensive football match analysis"""
-        # Simulated analysis - in real version, use your probability models
         import random
         
         # Base probabilities
@@ -153,42 +164,7 @@ class EnhancedAnalyzer:
             'predicted_score': f"{random.randint(85,115)}-{random.randint(80,110)}"
         }
     
-    def find_value_bets(self, predictions, odds_data, sport_type):
-        """Find value bets from predictions"""
-        value_bets = []
-        
-        for pred in predictions:
-            # Extract odds (simplified - in real version, parse actual odds)
-            if sport_type == "football":
-                market_odds = {
-                    'home_win': random.uniform(1.8, 4.0),
-                    'over_2_5': random.uniform(1.6, 2.8)
-                }
-            else:  # basketball
-                market_odds = {
-                    'home_win': random.uniform(1.5, 3.5),
-                    'over_total': random.uniform(1.6, 2.5)
-                }
-            
-            # Check for value
-            for market, probability in pred.items():
-                if market in market_odds and isinstance(probability, float):
-                    odds = market_odds[market]
-                    expected_value = (probability * odds) - 1
-                    
-                    if expected_value > 0.05:  # 5% edge
-                        value_bets.append({
-                            'match': pred['match'],
-                            'bet_type': market.replace('_', ' ').title(),
-                            'probability': probability,
-                            'odds': round(odds, 2),
-                            'expected_value': expected_value,
-                            'sport': sport_type
-                        })
-        
-        return value_bets
-    
-    def format_telegram_message(self, football_predictions, basketball_predictions, value_bets):
+    def format_telegram_message(self, football_predictions, basketball_predictions):
         """Format comprehensive analysis for Telegram"""
         message = "🎯 <b>HIGHXBET DAILY ANALYSIS</b> 🎯\n\n"
         message += f"📅 {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n"
@@ -200,7 +176,8 @@ class EnhancedAnalyzer:
                 message += f"{i}. <b>{pred['match']}</b>\n"
                 message += f"   🏠 Home: {pred['home_win']:.1%} | Draw: {pred['draw']:.1%} | Away: {pred['away_win']:.1%}\n"
                 message += f"   ⚽ Over 2.5: {pred['over_2_5']:.1%} | BTTS: {pred['btts']:.1%}\n"
-                message += f"   📊 Expected: {pred['expected_goals']} goals | Score: {pred['predicted_score']}\n"
+                message += f"   📊 Expected: {pred['expected_goals']} goals\n"
+                message += f"   🎯 Predicted: {pred['predicted_score']}\n"
                 message += f"   ✅ Confidence: {pred['confidence']:.0%}\n\n"
         
         # Basketball predictions
@@ -210,22 +187,14 @@ class EnhancedAnalyzer:
                 message += f"{i}. <b>{pred['match']}</b>\n"
                 message += f"   🏠 Home: {pred['home_win']:.1%} | Away: {pred['away_win']:.1%}\n"
                 message += f"   📈 Over Total: {pred['over_total']:.1%}\n"
-                message += f"   🏀 Expected: {pred['expected_total']} points | Score: {pred['predicted_score']}\n"
+                message += f"   🏀 Expected: {pred['expected_total']} points\n"
+                message += f"   🎯 Predicted: {pred['predicted_score']}\n"
                 message += f"   ✅ Confidence: {pred['confidence']:.0%}\n\n"
-        
-        # Value bets
-        if value_bets:
-            message += "<b>💰 VALUE BET OPPORTUNITIES</b>\n"
-            for i, bet in enumerate(value_bets[:3], 1):
-                message += f"{i}. {bet['sport'].upper()}: <b>{bet['match']}</b>\n"
-                message += f"   🎲 {bet['bet_type']} @ {bet['odds']}\n"
-                message += f"   📊 Probability: {bet['probability']:.1%}\n"
-                message += f"   💎 Expected Value: +{bet['expected_value']:.1%}\n\n"
         
         if not football_predictions and not basketball_predictions:
             message += "❌ No matches found for analysis today.\n\n"
         
-        message += "⚠️ <i>Analysis for educational purposes. Gamble responsibly.</i>"
+        message += "📊 <i>Comprehensive match analysis - Gamble responsibly</i>"
         return message
     
     def run_complete_analysis(self):
@@ -235,10 +204,9 @@ class EnhancedAnalyzer:
         
         football_predictions = []
         basketball_predictions = []
-        all_value_bets = []
         
         # Analyze Football
-        if self.config['sports']['football']:
+        if self.config.get('sports', {}).get('football', True):
             print("⚽ ANALYZING FOOTBALL MATCHES...")
             football_matches = self.get_current_matches("football")
             
@@ -257,7 +225,7 @@ class EnhancedAnalyzer:
                     continue
         
         # Analyze Basketball
-        if self.config['sports']['basketball']:
+        if self.config.get('sports', {}).get('basketball', True):
             print("🏀 ANALYZING BASKETBALL MATCHES...")
             basketball_matches = self.get_current_matches("basketball")
             
@@ -275,17 +243,8 @@ class EnhancedAnalyzer:
                 except Exception as e:
                     continue
         
-        # Find value bets
-        if self.config['analysis']['show_value_bets']:
-            print("💰 FINDING VALUE BETS...")
-            football_value = self.find_value_bets(football_predictions, [], "football")
-            basketball_value = self.find_value_bets(basketball_predictions, [], "basketball")
-            all_value_bets = football_value + basketball_value
-        
         # Send Telegram message
-        telegram_message = self.format_telegram_message(
-            football_predictions, basketball_predictions, all_value_bets
-        )
+        telegram_message = self.format_telegram_message(football_predictions, basketball_predictions)
         
         print("📱 SENDING COMPREHENSIVE ANALYSIS...")
         if self.send_telegram_message(telegram_message):
@@ -298,7 +257,6 @@ class EnhancedAnalyzer:
         print("📊 ANALYSIS COMPLETE!")
         print(f"⚽ Football matches analyzed: {len(football_predictions)}")
         print(f"🏀 Basketball matches analyzed: {len(basketball_predictions)}")
-        print(f"💰 Value bets found: {len(all_value_bets)}")
         print("📱 Check your Telegram for detailed analysis!")
         print("=" * 60)
 
@@ -309,5 +267,5 @@ if __name__ == "__main__":
     
     print("\n🎯 ENHANCED BOT READY!")
     print("💪 Now analyzes both Football & Basketball")
-    print("📊 Shows comprehensive predictions + value bets")
+    print("📊 Shows comprehensive predictions")
     print("🕒 Uses current live matches")
